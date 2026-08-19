@@ -1,4 +1,4 @@
-name: Deploy React app to GitHub Pages
+name: Deploy trade-prep
 
 on:
   push:
@@ -20,10 +20,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -32,16 +32,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Vite application
+      - name: Build
         run: npm run build
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+      - name: Show generated files
+        run: |
+          echo "Generated dist files:"
+          find dist -maxdepth 2 -type f | sort
+          echo "Generated index.html:"
+          cat dist/index.html
 
-      - name: Upload dist folder
+      - name: Upload dist
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: dist
 
   deploy:
     needs: build
@@ -52,6 +56,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
