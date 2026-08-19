@@ -11,9 +11,9 @@ interface LTFSectionProps {
   onUpdateMode: (mode: LTFMode) => void;
 }
 
-const LTF_VC_OPTIONS = ['15m', '5m', '1m', 'OB', 'RB', 'FVG'];
-const LTF_TRIGGER_OPTIONS = ['15m', '5m', '1m', 'FP', 'FVG'];
-const LTF_EXECUTION_OPTIONS = ['15m', '5m', '1m', 'OB', 'FVG'];
+const LTF_VC_OPTIONS = ['1H', '15m', '5m', '1m', 'OB', 'RB', 'FVG'];
+const LTF_TRIGGER_OPTIONS = ['1H', '15m', '5m', '1m', 'FP', 'FVG'];
+const LTF_EXECUTION_OPTIONS = ['1H', '15m', '5m', '1m', 'OB', 'FVG'];
 
 export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTFSectionProps) {
   // Determine if HTF Branch A Step 2 IDM is checked -> HTF VC to IDM sequence active

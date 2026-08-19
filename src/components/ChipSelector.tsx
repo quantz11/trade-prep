@@ -29,7 +29,7 @@ export function ChipSelector({ options, selectedChips = [], onChange, color = 'b
     <div className="flex flex-wrap items-center gap-1.5 mt-2 ml-9">
       {options.map((opt, index) => {
         const isSelected = selectedChips.includes(opt);
-        const isAfterTimeframe = index === 2; // after '1H' (D, 4H, 1H)
+        const isAfterTimeframe = opt === '1m';
         return (
           <React.Fragment key={opt}>
             <button
