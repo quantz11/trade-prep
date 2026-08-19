@@ -109,13 +109,14 @@ export default function App() {
   const ltfMode = currentPair?.ltfMode || 'trigger_entry';
   const config = currentPair?.config || { instrument: activeInstrument, bias: 'LONG', accountBalance: 100000, riskPercentage: 1.0, entryPrice: 1.085, stopLoss: 1.0835, takeProfit: 1.088 };
 
-  const updateCurrentPair = (updater: { htf?: Partial<HTFState>; ltf?: Partial<LTFState>; ltfMode?: LTFMode; config?: Partial<TradeConfig> }) => {
+  const updateCurrentPair = (updater: { htf?: Partial<HTFState>; ltf?: Partial<LTFState>; ltfMode?: LTFMode; config?: Partial<TradeConfig> }, targetInst?: string) => {
+    const inst = targetInst || activeInstrument;
     setPairs((prev) => {
-      const current = prev[activeInstrument];
+      const current = prev[inst];
       if (!current) return prev;
       return {
         ...prev,
-        [activeInstrument]: {
+        [inst]: {
           ...current,
           ...(updater.htf ? { htf: { ...current.htf, ...updater.htf } } : {}),
           ...(updater.ltf ? { ltf: { ...current.ltf, ...updater.ltf } } : {}),
@@ -207,7 +208,7 @@ export default function App() {
 
   const handleSelectPair = (inst: string) => {
     setActiveInstrument(inst);
-    updateCurrentPair({ config: { instrument: inst } });
+    updateCurrentPair({ config: { instrument: inst } }, inst);
   };
 
   // Determine readiness for entry calculator highlight
@@ -237,8 +238,10 @@ export default function App() {
             if (!pairs[updater.instrument]) {
               handleAddPair(updater.instrument);
             }
+            updateCurrentPair({ config: updater }, updater.instrument);
+          } else {
+            updateCurrentPair({ config: updater });
           }
-          updateCurrentPair({ config: updater });
         }}
         onReset={handleReset}
         onOpenGlossary={() => setIsGlossaryOpen(true)}
