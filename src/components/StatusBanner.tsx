@@ -50,10 +50,38 @@ export function StatusBanner({ htf, ltf, ltfMode, onExecuteTrade }: StatusBanner
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
                 {isReadyForEntry ? (
-                  <span className="text-emerald-400 flex items-center gap-2">
-                    <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-                    READY FOR ENTRY
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-emerald-400 flex items-center gap-2">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                      READY FOR ENTRY
+                    </span>
+                    {(() => {
+                      const isBranchB = htf.idm2 || htf.vc3;
+                      let chips: string[] = [];
+                      if (isBranchB) {
+                        if (htf.vc3) chips = htf.vc3Chips || [];
+                        else if (htf.idm2) chips = htf.idm2Chips || [];
+                      } else {
+                        if (htf.idm1) chips = htf.idm1Chips || [];
+                        else if (htf.vc2) chips = htf.vc2Chips || [];
+                        else if (htf.vc1) chips = htf.vc1Chips || [];
+                      }
+                      if (chips.length === 0) return null;
+                      return (
+                        <div className="flex items-center gap-1.5 mt-2 text-xs text-slate-300 font-mono">
+                          <span className="text-slate-400">SL on</span>
+                          {chips.map((chip) => (
+                            <span
+                              key={chip}
+                              className="px-2.5 py-0.5 rounded-full text-xs font-mono font-medium border bg-blue-500/20 text-blue-300 border-blue-500/50 shadow-sm shadow-blue-500/10 select-none"
+                            >
+                              {chip}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 ) : (
                   <span className="text-slate-300 flex items-center gap-2">
                     <Clock className="w-5 h-5 text-amber-400" />
