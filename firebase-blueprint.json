@@ -1,0 +1,32 @@
+{
+  "entities": {
+    "TradingSession": {
+      "title": "Trading Session",
+      "description": "Stores trade pairs, parameters, and checklist state across sessions and devices",
+      "type": "object",
+      "properties": {
+        "pairs": {
+          "type": "string",
+          "description": "JSON string of pairs sessions dictionary"
+        },
+        "activeInstrument": {
+          "type": "string",
+          "description": "Currently active instrument key"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["pairs", "activeInstrument", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/sessions/{sessionId}": {
+      "schema": {
+        "$ref": "#/entities/TradingSession"
+      },
+      "description": "Global or user trading session state"
+    }
+  }
+}

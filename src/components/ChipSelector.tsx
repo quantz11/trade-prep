@@ -26,22 +26,27 @@ export function ChipSelector({ options, selectedChips = [], onChange, color = 'b
       : 'bg-blue-500/20 text-blue-300 border-blue-500/50 shadow-sm shadow-blue-500/10';
 
   return (
-    <div className="flex flex-wrap gap-1.5 mt-2 ml-9">
-      {options.map((opt) => {
+    <div className="flex flex-wrap items-center gap-1.5 mt-2 ml-9">
+      {options.map((opt, index) => {
         const isSelected = selectedChips.includes(opt);
+        const isAfterTimeframe = index === 2; // after '1H' (D, 4H, 1H)
         return (
-          <button
-            key={opt}
-            type="button"
-            onClick={(e) => toggleChip(opt, e)}
-            className={`px-2.5 py-0.5 rounded-full text-xs font-mono font-medium border transition-all ${
-              isSelected 
-                ? activeBg 
-                : 'bg-slate-900/90 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-300'
-            }`}
-          >
-            {opt}
-          </button>
+          <React.Fragment key={opt}>
+            <button
+              type="button"
+              onClick={(e) => toggleChip(opt, e)}
+              className={`px-2.5 py-0.5 rounded-full text-xs font-mono font-medium border transition-all ${
+                isSelected 
+                  ? activeBg 
+                  : 'bg-slate-900/90 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-300'
+              }`}
+            >
+              {opt}
+            </button>
+            {isAfterTimeframe && (
+              <span className="text-slate-600 mx-1 select-none font-bold">·</span>
+            )}
+          </React.Fragment>
         );
       })}
     </div>

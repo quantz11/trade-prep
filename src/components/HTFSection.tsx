@@ -8,8 +8,8 @@ interface HTFSectionProps {
   onUpdateHTF: (updater: Partial<HTFState>) => void;
 }
 
-const VC_OPTIONS = ['D', '1H', '4H', 'OB', 'RB', 'FVG'];
-const IDM_OPTIONS = ['D', '1H', '4H', 'FP'];
+const VC_OPTIONS = ['D', '4H', '1H', 'OB', 'RB', 'FVG'];
+const IDM_OPTIONS = ['D', '4H', '1H', 'FP'];
 
 export function HTFSection({ htf, onUpdateHTF }: HTFSectionProps) {
   const showBranch1Next = htf.vc1;
@@ -113,7 +113,13 @@ export function HTFSection({ htf, onUpdateHTF }: HTFSectionProps) {
                         <input
                           type="checkbox"
                           checked={htf.vc2}
-                          onChange={(e) => onUpdateHTF({ vc2: e.target.checked })}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              onUpdateHTF({ vc2: true, idm1: false });
+                            } else {
+                              onUpdateHTF({ vc2: false });
+                            }
+                          }}
                           className="peer sr-only"
                         />
                         <div
@@ -151,7 +157,13 @@ export function HTFSection({ htf, onUpdateHTF }: HTFSectionProps) {
                         <input
                           type="checkbox"
                           checked={htf.idm1}
-                          onChange={(e) => onUpdateHTF({ idm1: e.target.checked })}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              onUpdateHTF({ idm1: true, vc2: false });
+                            } else {
+                              onUpdateHTF({ idm1: false });
+                            }
+                          }}
                           className="peer sr-only"
                         />
                         <div
@@ -171,7 +183,7 @@ export function HTFSection({ htf, onUpdateHTF }: HTFSectionProps) {
                         <p className="text-xs text-slate-400">Inducement sweep / liquidity grab</p>
                       </div>
                     </label>
-                    <ArrowDownRight className="w-4 h-4 text-blue-400/60 hidden sm:block" />
+                    <ArrowRight className="w-4 h-4 text-blue-400/60 hidden sm:block" />
                   </div>
                   <ChipSelector
                     options={IDM_OPTIONS}

@@ -210,9 +210,6 @@ export function RiskCalculator({ config, onUpdateConfig, isReady }: RiskCalculat
             onChange={(e) => onUpdateConfig({ entryPrice: parseFloat(e.target.value) || 0 })}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500/50 font-mono"
           />
-          <p className="text-[10px] text-slate-400 font-mono">
-            5-digit: {Number(config.entryPrice || 0).toFixed(5)}
-          </p>
         </div>
 
         {/* Stop Loss */}
@@ -225,9 +222,6 @@ export function RiskCalculator({ config, onUpdateConfig, isReady }: RiskCalculat
             onChange={(e) => onUpdateConfig({ stopLoss: parseFloat(e.target.value) || 0 })}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-rose-500/50 font-mono"
           />
-          <p className="text-[10px] text-slate-400 font-mono">
-            5-digit: {Number(config.stopLoss || 0).toFixed(5)}
-          </p>
         </div>
 
         {/* RR Ratio (Editable) */}
@@ -255,9 +249,6 @@ export function RiskCalculator({ config, onUpdateConfig, isReady }: RiskCalculat
             onChange={(e) => onUpdateConfig({ takeProfit: parseFloat(e.target.value) || 0 })}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500/50 font-mono"
           />
-          <p className="text-[10px] text-slate-400 font-mono">
-            5-digit: {Number(config.takeProfit || 0).toFixed(5)}
-          </p>
         </div>
       </div>
     </div>

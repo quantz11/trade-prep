@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidTradingSession(data) {
+      return data.keys().hasAll(['pairs', 'activeInstrument', 'updatedAt']) &&
+             data.keys().size() == 3 &&
+             data.pairs is string && data.pairs.size() <= 100000 &&
+             data.activeInstrument is string && data.activeInstrument.size() <= 32 &&
+             data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if true;
+      allow create, update: if isValidId(sessionId) && isValidTradingSession(request.resource.data);
+      allow delete: if false;
+    }
+  }
+}

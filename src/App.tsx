@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { db } from './lib/firebase';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { Header } from './components/Header';
 import { StatusBanner } from './components/StatusBanner';
 import { HTFSection } from './components/HTFSection';
@@ -46,12 +48,66 @@ export default function App() {
   const [activeInstrument, setActiveInstrument] = useState<string>('EURUSD');
   const [isGlossaryOpen, setIsGlossaryOpen] = useState(false);
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
+  const [isFirebaseLoaded, setIsFirebaseLoaded] = useState(false);
+  const isRemoteUpdate = useRef(false);
 
-  const currentPair = pairs[activeInstrument] || pairs['EUR/USD'];
-  const htf = currentPair.htf;
-  const ltf = currentPair.ltf;
-  const ltfMode = currentPair.ltfMode;
-  const config = currentPair.config;
+  // Sync state with Firestore in real-time
+  useEffect(() => {
+    const docRef = doc(db, 'sessions', 'main');
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.pairs) {
+          try {
+            const parsedPairs = JSON.parse(data.pairs);
+            isRemoteUpdate.current = true;
+            setPairs(parsedPairs);
+            if (data.activeInstrument && parsedPairs[data.activeInstrument]) {
+              setActiveInstrument(data.activeInstrument);
+            }
+          } catch (e) {
+            console.error('Error parsing pairs from Firestore', e);
+          }
+        }
+      } else {
+        setDoc(docRef, {
+          pairs: JSON.stringify(pairs),
+          activeInstrument,
+          updatedAt: new Date().toISOString()
+        }).catch(err => console.error('Error initializing session in Firestore', err));
+      }
+      setIsFirebaseLoaded(true);
+    }, (error) => {
+      console.error('Firestore snapshot error:', error);
+      setIsFirebaseLoaded(true);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Save state updates to Firestore
+  useEffect(() => {
+    if (!isFirebaseLoaded) return;
+    if (isRemoteUpdate.current) {
+      isRemoteUpdate.current = false;
+      return;
+    }
+
+    const docRef = doc(db, 'sessions', 'main');
+    setDoc(docRef, {
+      pairs: JSON.stringify(pairs),
+      activeInstrument,
+      updatedAt: new Date().toISOString()
+    }).catch(err => {
+      console.error('Error saving session to Firestore', err);
+    });
+  }, [pairs, activeInstrument, isFirebaseLoaded]);
+
+  const currentPair = pairs[activeInstrument] || pairs['EUR/USD'] || Object.values(pairs)[0];
+  const htf = currentPair?.htf || { vc1: false, vc2: false, idm1: false, idm2: false, vc3: false };
+  const ltf = currentPair?.ltf || { trigger1: false, entry1: false, vc: false, vcEntry: false, trigger2: false, entry2: false };
+  const ltfMode = currentPair?.ltfMode || 'trigger_entry';
+  const config = currentPair?.config || { instrument: activeInstrument, bias: 'LONG', accountBalance: 100000, riskPercentage: 1.0, entryPrice: 1.085, stopLoss: 1.0835, takeProfit: 1.088 };
 
   const updateCurrentPair = (updater: { htf?: Partial<HTFState>; ltf?: Partial<LTFState>; ltfMode?: LTFMode; config?: Partial<TradeConfig> }) => {
     setPairs((prev) => {
