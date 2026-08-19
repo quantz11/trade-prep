@@ -154,8 +154,21 @@ export default function App() {
 
   const handleReset = () => {
     updateCurrentPair({
-      htf: { vc1: false, vc2: false, idm1: false, idm2: false, vc3: false },
-      ltf: { trigger1: false, entry1: false, vc: false, vcEntry: false, trigger2: false, entry2: false },
+      htf: {
+        vc1: false, vc1Chips: [],
+        vc2: false, vc2Chips: [],
+        idm1: false, idm1Chips: [],
+        idm2: false, idm2Chips: [],
+        vc3: false, vc3Chips: []
+      },
+      ltf: {
+        trigger1: false, trigger1Chips: [],
+        entry1: false, entry1Chips: [],
+        vc: false, vcChips: [],
+        vcEntry: false, vcEntryChips: [],
+        trigger2: false, trigger2Chips: [],
+        entry2: false, entry2Chips: []
+      },
     });
   };
 

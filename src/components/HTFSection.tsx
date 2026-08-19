@@ -66,7 +66,13 @@ export function HTFSection({ htf, onUpdateHTF }: HTFSectionProps) {
                   <input
                     type="checkbox"
                     checked={htf.vc1}
-                    onChange={(e) => onUpdateHTF({ vc1: e.target.checked })}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        onUpdateHTF({ vc1: true, idm2: false, idm2Chips: [], vc3: false, vc3Chips: [] });
+                      } else {
+                        onUpdateHTF({ vc1: false, vc1Chips: [], vc2: false, vc2Chips: [], idm1: false, idm1Chips: [] });
+                      }
+                    }}
                     className="peer sr-only"
                   />
                   <div
@@ -115,9 +121,9 @@ export function HTFSection({ htf, onUpdateHTF }: HTFSectionProps) {
                           checked={htf.vc2}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              onUpdateHTF({ vc2: true, idm1: false });
+                              onUpdateHTF({ vc2: true, idm1: false, idm1Chips: [] });
                             } else {
-                              onUpdateHTF({ vc2: false });
+                              onUpdateHTF({ vc2: false, vc2Chips: [] });
                             }
                           }}
                           className="peer sr-only"
@@ -159,9 +165,9 @@ export function HTFSection({ htf, onUpdateHTF }: HTFSectionProps) {
                           checked={htf.idm1}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              onUpdateHTF({ idm1: true, vc2: false });
+                              onUpdateHTF({ idm1: true, vc2: false, vc2Chips: [] });
                             } else {
-                              onUpdateHTF({ idm1: false });
+                              onUpdateHTF({ idm1: false, idm1Chips: [] });
                             }
                           }}
                           className="peer sr-only"
@@ -211,7 +217,13 @@ export function HTFSection({ htf, onUpdateHTF }: HTFSectionProps) {
                   <input
                     type="checkbox"
                     checked={htf.idm2}
-                    onChange={(e) => onUpdateHTF({ idm2: e.target.checked })}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        onUpdateHTF({ idm2: true, vc1: false, vc1Chips: [], vc2: false, vc2Chips: [], idm1: false, idm1Chips: [] });
+                      } else {
+                        onUpdateHTF({ idm2: false, idm2Chips: [], vc3: false, vc3Chips: [] });
+                      }
+                    }}
                     className="peer sr-only"
                   />
                   <div
@@ -258,7 +270,13 @@ export function HTFSection({ htf, onUpdateHTF }: HTFSectionProps) {
                         <input
                           type="checkbox"
                           checked={htf.vc3}
-                          onChange={(e) => onUpdateHTF({ vc3: e.target.checked })}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              onUpdateHTF({ vc3: true });
+                            } else {
+                              onUpdateHTF({ vc3: false, vc3Chips: [] });
+                            }
+                          }}
                           className="peer sr-only"
                         />
                         <div

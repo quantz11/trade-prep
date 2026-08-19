@@ -128,7 +128,13 @@ export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTF
                     <input
                       type="checkbox"
                       checked={ltf.trigger1}
-                      onChange={(e) => onUpdateLTF({ trigger1: e.target.checked })}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          onUpdateLTF({ trigger1: true });
+                        } else {
+                          onUpdateLTF({ trigger1: false, trigger1Chips: [], entry1: false, entry1Chips: [] });
+                        }
+                      }}
                       className="peer sr-only"
                     />
                     <div
@@ -167,7 +173,13 @@ export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTF
                         <input
                           type="checkbox"
                           checked={ltf.entry1}
-                          onChange={(e) => onUpdateLTF({ entry1: e.target.checked })}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              onUpdateLTF({ entry1: true });
+                            } else {
+                              onUpdateLTF({ entry1: false, entry1Chips: [] });
+                            }
+                          }}
                           className="peer sr-only"
                         />
                         <div
@@ -215,7 +227,13 @@ export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTF
                     <input
                       type="checkbox"
                       checked={ltf.vc}
-                      onChange={(e) => onUpdateLTF({ vc: e.target.checked })}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          onUpdateLTF({ vc: true });
+                        } else {
+                          onUpdateLTF({ vc: false, vcChips: [], vcEntry: false, vcEntryChips: [], trigger2: false, trigger2Chips: [], entry2: false, entry2Chips: [] });
+                        }
+                      }}
                       className="peer sr-only"
                     />
                     <div
@@ -254,7 +272,13 @@ export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTF
                         <input
                           type="checkbox"
                           checked={ltf.trigger2}
-                          onChange={(e) => onUpdateLTF({ trigger2: e.target.checked })}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              onUpdateLTF({ trigger2: true });
+                            } else {
+                              onUpdateLTF({ trigger2: false, trigger2Chips: [], entry2: false, entry2Chips: [] });
+                            }
+                          }}
                           className="peer sr-only"
                         />
                         <div
@@ -293,7 +317,13 @@ export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTF
                             <input
                               type="checkbox"
                               checked={ltf.entry2}
-                              onChange={(e) => onUpdateLTF({ entry2: e.target.checked })}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  onUpdateLTF({ entry2: true });
+                                } else {
+                                  onUpdateLTF({ entry2: false, entry2Chips: [] });
+                                }
+                              }}
                               className="peer sr-only"
                             />
                             <div
@@ -343,7 +373,13 @@ export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTF
                     <input
                       type="checkbox"
                       checked={ltf.vc}
-                      onChange={(e) => onUpdateLTF({ vc: e.target.checked })}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          onUpdateLTF({ vc: true });
+                        } else {
+                          onUpdateLTF({ vc: false, vcChips: [], vcEntry: false, vcEntryChips: [], trigger2: false, trigger2Chips: [], entry2: false, entry2Chips: [] });
+                        }
+                      }}
                       className="peer sr-only"
                     />
                     <div
@@ -382,7 +418,13 @@ export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTF
                         <input
                           type="checkbox"
                           checked={ltf.vcEntry}
-                          onChange={(e) => onUpdateLTF({ vcEntry: e.target.checked })}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              onUpdateLTF({ vcEntry: true });
+                            } else {
+                              onUpdateLTF({ vcEntry: false, vcEntryChips: [] });
+                            }
+                          }}
                           className="peer sr-only"
                         />
                         <div
