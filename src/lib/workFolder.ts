@@ -804,3 +804,138 @@ export async function updateTradeOutcomeInWorkFolder(
     return { success: false, error: err?.message || 'Failed to update trade outcome' };
   }
 }
+
+/**
+ * Deletes the trade directory and all its files from the local work folder
+ */
+export async function deleteTradeFromWorkFolder(
+  tradeId: string,
+  instrument?: string,
+  dirHandle: FileSystemDirectoryHandle | null = null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    let activeHandle = dirHandle;
+    if (!activeHandle) {
+      activeHandle = await getPersistedDirHandle();
+    }
+
+    if (!activeHandle) {
+      return { success: false, error: 'No work folder connected' };
+    }
+
+    // Verify permission
+    // @ts-ignore
+    if (activeHandle.queryPermission) {
+      // @ts-ignore
+      let q = await activeHandle.queryPermission({ mode: 'readwrite' });
+      if (q !== 'granted') {
+        // @ts-ignore
+        q = await activeHandle.requestPermission({ mode: 'readwrite' });
+        if (q !== 'granted') {
+          return { success: false, error: 'Readwrite permission not granted' };
+        }
+      }
+    }
+
+    let deleted = false;
+
+    // 1. Fast direct removal if instrument / pair name is known: <activeHandle>/<instrument>/<tradeId>
+    if (instrument) {
+      const pairFolder = instrument.toUpperCase().replace('/', '').trim() || 'DEFAULT';
+      try {
+        const pairHandle = await activeHandle.getDirectoryHandle(pairFolder);
+        try {
+          await pairHandle.removeEntry(tradeId, { recursive: true });
+          deleted = true;
+        } catch {
+          // May not be directly named tradeId, continue to search
+        }
+      } catch {
+        // Pair folder might not exist
+      }
+    }
+
+    // 2. Recursive search & destroy across folder structure
+    async function searchAndDelete(currentDir: FileSystemDirectoryHandle, currentDepth: number = 0): Promise<boolean> {
+      if (currentDepth > 4) return false;
+      let foundAndDeleted = false;
+
+      // @ts-ignore
+      for await (const [name, entry] of currentDir.entries()) {
+        if (entry.kind === 'directory') {
+          // If directory name matches tradeId exactly or contains it
+          if (name === tradeId || name.includes(tradeId)) {
+            try {
+              await currentDir.removeEntry(name, { recursive: true });
+              foundAndDeleted = true;
+              continue;
+            } catch (delErr) {
+              console.warn('Notice removing directory:', name, delErr);
+            }
+          }
+
+          // Check if this directory contains a report.json or result.json with matching trade id
+          let isMatchingDir = false;
+          try {
+            const reportHandle = await (entry as FileSystemDirectoryHandle).getFileHandle('report.json');
+            const file = await reportHandle.getFile();
+            const text = await file.text();
+            const data = JSON.parse(text);
+            if (data && data.id === tradeId) {
+              isMatchingDir = true;
+            }
+          } catch {
+            try {
+              const resultHandle = await (entry as FileSystemDirectoryHandle).getFileHandle('result.json');
+              const file = await resultHandle.getFile();
+              const text = await file.text();
+              const data = JSON.parse(text);
+              if (data && data.id === tradeId) {
+                isMatchingDir = true;
+              }
+            } catch {
+              // Not a matching report or result
+            }
+          }
+
+          if (isMatchingDir) {
+            try {
+              await currentDir.removeEntry(name, { recursive: true });
+              foundAndDeleted = true;
+              continue;
+            } catch (delErr) {
+              console.warn('Notice removing matching trade directory:', name, delErr);
+            }
+          }
+
+          // Recurse into subfolder
+          const subDeleted = await searchAndDelete(entry as FileSystemDirectoryHandle, currentDepth + 1);
+          if (subDeleted) {
+            foundAndDeleted = true;
+          }
+        } else if (entry.kind === 'file') {
+          // If standalone file matches tradeId.json
+          if (name === `${tradeId}.json` || name.includes(tradeId)) {
+            try {
+              await currentDir.removeEntry(name);
+              foundAndDeleted = true;
+            } catch (delErr) {
+              console.warn('Notice removing file:', name, delErr);
+            }
+          }
+        }
+      }
+
+      return foundAndDeleted;
+    }
+
+    if (!deleted) {
+      deleted = await searchAndDelete(activeHandle, 0);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Failed to delete trade from work folder:', err);
+    return { success: false, error: err?.message || 'Failed to delete trade from local work folder' };
+  }
+}

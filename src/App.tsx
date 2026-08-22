@@ -85,6 +85,7 @@ import {
   scanAndImportWorkFolder,
   importTradesFromUploadedFiles,
   updateTradeOutcomeInWorkFolder,
+  deleteTradeFromWorkFolder,
 } from './lib/workFolder';
 
 export default function App() {
@@ -526,7 +527,20 @@ export default function App() {
   };
 
   const handleDeleteTrade = (id: string) => {
+    const tradeToDelete = savedTrades.find((t) => t.id === id);
     setSavedTrades((prev) => prev.filter((t) => t.id !== id));
+
+    deleteTradeFromWorkFolder(id, tradeToDelete?.config.instrument, workDirHandle)
+      .then((res) => {
+        if (res.success) {
+          console.log(`Deleted trade ${id} from local work folder`);
+        } else if (res.error) {
+          console.warn('Notice removing trade from work folder:', res.error);
+        }
+      })
+      .catch((err) => {
+        console.warn('Error deleting trade from work folder:', err);
+      });
   };
 
   const handleUpdateTradeOutcome = (id: string, outcome: TradeOutcome | undefined) => {
