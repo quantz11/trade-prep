@@ -7,18 +7,29 @@
       "properties": {
         "pairs": {
           "type": "string",
-          "description": "JSON string of pairs sessions dictionary"
+          "description": "JSON string of pairs sessions dictionary including pasted chart images",
+          "maxLength": 10000000
+        },
+        "savedTrades": {
+          "type": "string",
+          "description": "JSON string of saved trades list",
+          "maxLength": 10000000
         },
         "activeInstrument": {
           "type": "string",
           "description": "Currently active instrument key"
+        },
+        "password": {
+          "type": "string",
+          "description": "Workstation authentication password",
+          "maxLength": 256
         },
         "updatedAt": {
           "type": "string",
           "description": "Last update timestamp"
         }
       },
-      "required": ["pairs", "activeInstrument", "updatedAt"]
+      "required": ["pairs", "savedTrades", "activeInstrument", "updatedAt"]
     }
   },
   "firestore": {

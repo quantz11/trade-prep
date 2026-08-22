@@ -1,4 +1,4 @@
-import { CheckCircle2, AlertCircle, Clock, ArrowRight } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Clock, ArrowRight, Bookmark } from 'lucide-react';
 import { HTFState, LTFState, LTFMode } from '../types';
 
 interface StatusBannerProps {
@@ -6,9 +6,10 @@ interface StatusBannerProps {
   ltf: LTFState;
   ltfMode: LTFMode;
   onExecuteTrade?: () => void;
+  onSaveTrade?: () => void;
 }
 
-export function StatusBanner({ htf, ltf, ltfMode, onExecuteTrade }: StatusBannerProps) {
+export function StatusBanner({ htf, ltf, ltfMode, onExecuteTrade, onSaveTrade }: StatusBannerProps) {
   // Determine if HTF is confirmed
   // Branch 1: vc1 -> vc2 & idm1
   // Branch 2: idm2 -> vc3
@@ -120,7 +121,16 @@ export function StatusBanner({ htf, ltf, ltfMode, onExecuteTrade }: StatusBanner
               <span>LTF: {isLTFConfirmed ? 'Confirmed' : 'Pending'}</span>
             </div>
 
-            <div className="ml-auto lg:ml-2">
+            <div className="ml-auto lg:ml-2 flex items-center gap-2">
+              <button
+                onClick={onSaveTrade}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+                title="Save current checklist setup to journal"
+              >
+                <Bookmark className="w-3.5 h-3.5 text-blue-400" />
+                <span>Save Setup</span>
+              </button>
+
               {isReadyForEntry ? (
                 <button
                   onClick={onExecuteTrade}
@@ -130,8 +140,8 @@ export function StatusBanner({ htf, ltf, ltfMode, onExecuteTrade }: StatusBanner
                   <span>EXECUTE TRADE</span>
                 </button>
               ) : (
-                <div className="px-4 py-2 rounded-xl text-xs font-bold tracking-wide bg-slate-800 text-slate-400 border border-slate-700/50">
-                  HOLD POSITION
+                <div className="px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide bg-slate-900 text-slate-400 border border-slate-800">
+                  Hold Position
                 </div>
               )}
             </div>

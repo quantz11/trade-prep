@@ -10,11 +10,13 @@ service cloud.firestore {
     }
 
     function isValidTradingSession(data) {
-      return data.keys().hasAll(['pairs', 'activeInstrument', 'updatedAt']) &&
-             data.keys().size() == 3 &&
-             data.pairs is string && data.pairs.size() <= 100000 &&
+      return data.keys().hasAll(['pairs', 'savedTrades', 'activeInstrument', 'updatedAt']) &&
+             data.keys().hasOnly(['pairs', 'savedTrades', 'activeInstrument', 'updatedAt', 'password']) &&
+             data.pairs is string && data.pairs.size() <= 10000000 &&
+             data.savedTrades is string && data.savedTrades.size() <= 10000000 &&
              data.activeInstrument is string && data.activeInstrument.size() <= 32 &&
-             data.updatedAt is string && data.updatedAt.size() <= 64;
+             data.updatedAt is string && data.updatedAt.size() <= 64 &&
+             (!('password' in data) || (data.password is string && data.password.size() <= 256));
     }
 
     match /sessions/{sessionId} {

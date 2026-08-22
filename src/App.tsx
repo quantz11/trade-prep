@@ -1,6 +1,70 @@
 import { useState, useEffect, useRef } from 'react';
-import { db } from './lib/firebase';
+import { db, auth } from './lib/firebase';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { cleanObjectForFirestore, rehydrateImagesFromLocal } from './lib/imageStorage';
+import { AuthScreen } from './components/AuthScreen';
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errStr = error instanceof Error ? error.message : String(error);
+  const isOfflineOrUnavailable =
+    errStr.includes('unavailable') ||
+    errStr.includes('offline') ||
+    errStr.includes('Could not reach Cloud Firestore backend') ||
+    errStr.includes('Failed to get document because the client is offline');
+
+  const errInfo: FirestoreErrorInfo = {
+    error: errStr,
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+
+  if (isOfflineOrUnavailable) {
+    console.warn(`[Firestore Offline Fallback] Operation: ${operationType} on ${path}. Firestore will sync when reconnected.`);
+    return;
+  }
+
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  if (errStr.includes('permission') || errStr.includes('PERMISSION_DENIED') || errStr.includes('Missing or insufficient permissions')) {
+    throw new Error(JSON.stringify(errInfo));
+  }
+}
 import { Header } from './components/Header';
 import { StatusBanner } from './components/StatusBanner';
 import { HTFSection } from './components/HTFSection';
@@ -8,8 +72,19 @@ import { LTFSection } from './components/LTFSection';
 import { RiskCalculator } from './components/RiskCalculator';
 import { GlossaryModal } from './components/GlossaryModal';
 import { TradeSuccessModal } from './components/TradeSuccessModal';
+import { SavedTradesView } from './components/SavedTradesView';
+import { WorkFolderModal } from './components/WorkFolderModal';
 import { MultiPairWatchlist, PairSession } from './components/MultiPairWatchlist';
-import { HTFState, LTFState, LTFMode, TradeConfig } from './types';
+import { HTFState, LTFState, LTFMode, TradeConfig, SavedTrade, TradeOutcome } from './types';
+import {
+  isFileSystemAccessSupported,
+  isAIStudioEnvironment,
+  saveTradeToWorkFolder,
+  getPersistedDirHandle,
+  persistDirHandle,
+  scanAndImportWorkFolder,
+  importTradesFromUploadedFiles,
+} from './lib/workFolder';
 
 export default function App() {
   const [pairs, setPairs] = useState<Record<string, PairSession>>({
@@ -46,8 +121,19 @@ export default function App() {
   });
 
   const [activeInstrument, setActiveInstrument] = useState<string>('EURUSD');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return sessionStorage.getItem('trade_authenticated') === 'true';
+  });
+  const [savedTrades, setSavedTrades] = useState<SavedTrade[]>([]);
   const [isGlossaryOpen, setIsGlossaryOpen] = useState(false);
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
+  const [isSavedTradesOpen, setIsSavedTradesOpen] = useState(false);
+  const [isWorkFolderOpen, setIsWorkFolderOpen] = useState(false);
+  const [workDirHandle, setWorkDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
+  const [workFolderName, setWorkFolderName] = useState<string | null>(null);
+  const [isVirtualFolder, setIsVirtualFolder] = useState<boolean>(false);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
   const [isFirebaseLoaded, setIsFirebaseLoaded] = useState(false);
   const isRemoteUpdate = useRef(false);
 
@@ -60,32 +146,67 @@ export default function App() {
         if (data.pairs) {
           try {
             const parsedPairs = JSON.parse(data.pairs);
+            const rehydratedPairs = rehydrateImagesFromLocal(parsedPairs);
             isRemoteUpdate.current = true;
-            setPairs(parsedPairs);
-            if (data.activeInstrument && parsedPairs[data.activeInstrument]) {
+            setPairs(rehydratedPairs);
+            if (data.activeInstrument && rehydratedPairs[data.activeInstrument]) {
               setActiveInstrument(data.activeInstrument);
             }
           } catch (e) {
             console.error('Error parsing pairs from Firestore', e);
           }
         }
+        if (data.savedTrades) {
+          try {
+            const parsedTrades = JSON.parse(data.savedTrades);
+            const rehydratedTrades = rehydrateImagesFromLocal(parsedTrades);
+            setSavedTrades(rehydratedTrades);
+          } catch (e) {
+            console.error('Error parsing savedTrades from Firestore', e);
+          }
+        }
       } else {
-        setDoc(docRef, {
-          pairs: JSON.stringify(pairs),
-          activeInstrument,
-          updatedAt: new Date().toISOString()
-        }).catch(err => console.error('Error initializing session in Firestore', err));
+        const cleanPairs = cleanObjectForFirestore(pairs);
+        const cleanTrades = cleanObjectForFirestore(savedTrades);
+        setDoc(
+          docRef,
+          {
+            pairs: JSON.stringify(cleanPairs),
+            savedTrades: JSON.stringify(cleanTrades),
+            activeInstrument,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        ).catch((err) => handleFirestoreError(err, OperationType.WRITE, 'sessions/main'));
       }
       setIsFirebaseLoaded(true);
     }, (error) => {
-      console.error('Firestore snapshot error:', error);
+      handleFirestoreError(error, OperationType.GET, 'sessions/main');
       setIsFirebaseLoaded(true);
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Save state updates to Firestore
+  useEffect(() => {
+    const savedFolder = localStorage.getItem('trade_work_folder_name') || 'C:\\Trading\\TradeJournal';
+    const virtualMode = localStorage.getItem('trade_work_folder_virtual') !== 'false';
+    setWorkFolderName(savedFolder);
+    setIsVirtualFolder(virtualMode);
+    if (!localStorage.getItem('trade_work_folder_name')) {
+      localStorage.setItem('trade_work_folder_name', 'C:\\Trading\\TradeJournal');
+      localStorage.setItem('trade_work_folder_virtual', 'true');
+    }
+    if (!virtualMode && isFileSystemAccessSupported()) {
+      getPersistedDirHandle().then((handle) => {
+        if (handle) {
+          setWorkDirHandle(handle);
+        }
+      });
+    }
+  }, []);
+
+  // Save state updates to Firestore (without sending heavy image binaries)
   useEffect(() => {
     if (!isFirebaseLoaded) return;
     if (isRemoteUpdate.current) {
@@ -93,15 +214,23 @@ export default function App() {
       return;
     }
 
+    const cleanPairs = cleanObjectForFirestore(pairs);
+    const cleanTrades = cleanObjectForFirestore(savedTrades);
+
     const docRef = doc(db, 'sessions', 'main');
-    setDoc(docRef, {
-      pairs: JSON.stringify(pairs),
-      activeInstrument,
-      updatedAt: new Date().toISOString()
-    }).catch(err => {
-      console.error('Error saving session to Firestore', err);
+    setDoc(
+      docRef,
+      {
+        pairs: JSON.stringify(cleanPairs),
+        savedTrades: JSON.stringify(cleanTrades),
+        activeInstrument,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    ).catch((err) => {
+      handleFirestoreError(err, OperationType.WRITE, 'sessions/main');
     });
-  }, [pairs, activeInstrument, isFirebaseLoaded]);
+  }, [pairs, savedTrades, activeInstrument, isFirebaseLoaded]);
 
   const currentPair = pairs[activeInstrument] || pairs['EUR/USD'] || Object.values(pairs)[0];
   const htf = currentPair?.htf || { vc1: false, vc2: false, idm1: false, idm2: false, vc3: false };
@@ -211,6 +340,218 @@ export default function App() {
     updateCurrentPair({ config: { instrument: inst } }, inst);
   };
 
+  const generateTradeId = () => {
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const rand = Math.floor(100 + Math.random() * 900);
+    return `TR-${dateStr}-${rand}`;
+  };
+
+  const handleSetVirtualFolder = async (path?: string) => {
+    const finalPath = (path && path.trim()) ? path.trim() : 'C:\\Trading\\TradeJournal';
+    setWorkFolderName(finalPath);
+    setIsVirtualFolder(true);
+    setWorkDirHandle(null);
+    localStorage.setItem('trade_work_folder_name', finalPath);
+    localStorage.setItem('trade_work_folder_virtual', 'true');
+    await persistDirHandle(null);
+    setImportStatus(`Work folder path set to default "${finalPath}".`);
+  };
+
+  const handleSelectWorkFolder = async () => {
+    if (!isFileSystemAccessSupported()) {
+      setImportStatus(`File System picker is restricted in this browser environment. Using path "${workFolderName || 'C:\\Trading\\TradeJournal'}".`);
+      return;
+    }
+    try {
+      // @ts-ignore
+      const handle = await window.showDirectoryPicker({
+        id: 'TradeJournalWorkFolder',
+        mode: 'readwrite',
+      });
+      setWorkDirHandle(handle);
+      const chosenName = handle.name;
+      const updatedPath = (workFolderName && workFolderName.endsWith(chosenName)) ? workFolderName : chosenName;
+      setWorkFolderName(updatedPath);
+      setIsVirtualFolder(false);
+      localStorage.setItem('trade_work_folder_name', updatedPath);
+      localStorage.setItem('trade_work_folder_virtual', 'false');
+      await persistDirHandle(handle);
+      setImportStatus(`Work folder connected to "${updatedPath}".`);
+    } catch (e) {
+      console.warn('Folder selection cancelled or restricted:', e);
+      setImportStatus(`Work folder pointing to "${workFolderName || 'C:\\Trading\\TradeJournal'}".`);
+    }
+  };
+
+  const handleImportReports = async (promptPicker: boolean = false) => {
+    try {
+      setImportStatus('Scanning work folder for trade reports...');
+      const res = await scanAndImportWorkFolder(workDirHandle, promptPicker, isVirtualFolder);
+      if (res.updatedDirHandle) {
+        setWorkDirHandle(res.updatedDirHandle);
+        setWorkFolderName(res.updatedDirHandle.name);
+        setIsVirtualFolder(false);
+        localStorage.setItem('trade_work_folder_name', res.updatedDirHandle.name);
+        localStorage.setItem('trade_work_folder_virtual', 'false');
+      }
+
+      if (res.success) {
+        if (res.trades.length > 0) {
+          const sorted = [...res.trades].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          setSavedTrades(sorted);
+          setImportStatus(`Successfully scanned and imported ${res.count} trade report(s) from "${res.updatedDirHandle?.name || workFolderName || 'Work Folder'}" (replaced previous journal data).`);
+        } else {
+          setImportStatus(`No trade reports (report.json) found in folder "${res.updatedDirHandle?.name || workFolderName || 'selected folder'}".`);
+        }
+      } else {
+        setImportStatus(res.error || 'Could not access work folder.');
+      }
+    } catch (e) {
+      console.error(e);
+      setImportStatus('Error scanning work folder.');
+    }
+  };
+
+  const handleUploadReports = async (files: FileList) => {
+    try {
+      const fileArray = Array.from(files);
+      const firstRelPath = fileArray[0]?.webkitRelativePath;
+      const rootFolder = firstRelPath ? firstRelPath.split('/')[0] : null;
+
+      setImportStatus(`Processing trade report(s) from ${rootFolder || workFolderName || 'folder'}...`);
+      const imported = await importTradesFromUploadedFiles(files);
+
+      if (imported.length > 0) {
+        const sorted = [...imported].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setSavedTrades(sorted);
+        setImportStatus(`Successfully scanned and imported ${imported.length} trade report(s) from "${rootFolder || workFolderName || 'Work Folder'}" (replaced previous journal data).`);
+      } else {
+        setImportStatus(`No trade reports (report.json) found in selected files/folder "${rootFolder || workFolderName || 'Work Folder'}".`);
+      }
+    } catch (e) {
+      console.error(e);
+      setImportStatus('Error importing trade reports.');
+    }
+  };
+
+  const helperSaveToWorkFolder = async (newTrade: SavedTrade) => {
+    const res = await saveTradeToWorkFolder(workDirHandle, isVirtualFolder, workFolderName, newTrade);
+    if (res.updatedDirHandle && !workDirHandle) {
+      setWorkDirHandle(res.updatedDirHandle);
+      setWorkFolderName(res.updatedDirHandle.name);
+      setIsVirtualFolder(false);
+      localStorage.setItem('trade_work_folder_name', res.updatedDirHandle.name);
+      localStorage.setItem('trade_work_folder_virtual', 'false');
+    }
+    if (res.success) {
+      newTrade.sync = {
+        local: true,
+        firebase: true,
+        status: 'SYNCED',
+        lastSyncedAt: new Date().toISOString(),
+      };
+      // If ZIP blob is generated (only in AI Studio sandbox mode), offer download
+      if (res.zipBlob) {
+        const url = URL.createObjectURL(res.zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${newTrade.config.instrument}-${newTrade.id}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } else {
+      newTrade.sync = {
+        local: false,
+        firebase: true,
+        status: 'LOCAL ERROR',
+      };
+    }
+  };
+
+  const handleExecuteTrade = async () => {
+    const tradeId = generateTradeId();
+    const newTrade: SavedTrade = {
+      id: tradeId,
+      createdAt: new Date().toISOString(),
+      config: { ...config },
+      htf: { ...htf },
+      ltf: { ...ltf },
+      ltfMode,
+      status: 'EXECUTED',
+      sync: {
+        local: false,
+        firebase: true,
+        status: workFolderName || !isAIStudioEnvironment() ? 'PENDING LOCAL' : 'FIREBASE ONLY',
+      },
+    };
+
+    if (workFolderName || (!isAIStudioEnvironment() && isFileSystemAccessSupported())) {
+      await helperSaveToWorkFolder(newTrade);
+    }
+
+    setSavedTrades((prev) => [newTrade, ...prev]);
+    setIsTradeModalOpen(true);
+  };
+
+  const handleSaveSetup = async () => {
+    const tradeId = generateTradeId();
+    const newTrade: SavedTrade = {
+      id: tradeId,
+      createdAt: new Date().toISOString(),
+      config: { ...config },
+      htf: { ...htf },
+      ltf: { ...ltf },
+      ltfMode,
+      status: 'SAVED',
+      sync: {
+        local: false,
+        firebase: true,
+        status: workFolderName || !isAIStudioEnvironment() ? 'PENDING LOCAL' : 'FIREBASE ONLY',
+      },
+    };
+
+    if (workFolderName || (!isAIStudioEnvironment() && isFileSystemAccessSupported())) {
+      await helperSaveToWorkFolder(newTrade);
+    }
+
+    setSavedTrades((prev) => [newTrade, ...prev]);
+    setIsSavedTradesOpen(true);
+  };
+
+  const handleDeleteTrade = (id: string) => {
+    setSavedTrades((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const handleUpdateTradeOutcome = (id: string, outcome: TradeOutcome | undefined) => {
+    setSavedTrades((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, outcome } : t))
+    );
+  };
+
+  const handleLoadTrade = (trade: SavedTrade) => {
+    const inst = trade.config.instrument;
+    if (!pairs[inst]) {
+      handleAddPair(inst);
+    }
+    setActiveInstrument(inst);
+    setPairs((prev) => ({
+      ...prev,
+      [inst]: {
+        instrument: inst,
+        config: { ...trade.config },
+        htf: { ...trade.htf },
+        ltf: { ...trade.ltf },
+        ltfMode: trade.ltfMode,
+      },
+    }));
+  };
+
   // Determine readiness for entry calculator highlight
   const isBranch1Complete = htf.vc1 && (htf.vc2 || htf.idm1);
   const isBranch2Complete = htf.idm2 && htf.vc3;
@@ -226,6 +567,15 @@ export default function App() {
   }
 
   const isReadyForEntry = isHTFConfirmed && isLTFConfirmed;
+
+  const handleLockWorkstation = () => {
+    sessionStorage.removeItem('trade_authenticated');
+    setIsAuthenticated(false);
+  };
+
+  if (!isAuthenticated) {
+    return <AuthScreen onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
@@ -245,6 +595,11 @@ export default function App() {
         }}
         onReset={handleReset}
         onOpenGlossary={() => setIsGlossaryOpen(true)}
+        onOpenSavedTrades={() => setIsSavedTradesOpen(true)}
+        onOpenWorkFolder={() => setIsWorkFolderOpen(true)}
+        onLockWorkstation={handleLockWorkstation}
+        savedTradesCount={savedTrades.length}
+        workFolderName={workFolderName}
       />
 
       {/* Main Container */}
@@ -259,7 +614,13 @@ export default function App() {
         />
 
         {/* Status Banner */}
-        <StatusBanner htf={htf} ltf={ltf} ltfMode={ltfMode} onExecuteTrade={() => setIsTradeModalOpen(true)} />
+        <StatusBanner
+          htf={htf}
+          ltf={ltf}
+          ltfMode={ltfMode}
+          onExecuteTrade={handleExecuteTrade}
+          onSaveTrade={handleSaveSetup}
+        />
 
         {/* Two Independent Columns for HTF and LTF */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -294,6 +655,37 @@ export default function App() {
 
       {/* Trade Success Modal */}
       <TradeSuccessModal isOpen={isTradeModalOpen} onClose={() => setIsTradeModalOpen(false)} config={config} />
+
+      {/* Saved Trades View */}
+      {isSavedTradesOpen && (
+        <SavedTradesView
+          trades={savedTrades}
+          onDeleteTrade={handleDeleteTrade}
+          onLoadTrade={handleLoadTrade}
+          onUpdateOutcome={handleUpdateTradeOutcome}
+          onClose={() => setIsSavedTradesOpen(false)}
+          onScanWorkFolder={() => handleImportReports(false)}
+          onOpenWorkFolderModal={() => setIsWorkFolderOpen(true)}
+          onUploadFiles={handleUploadReports}
+          workFolderName={workFolderName}
+        />
+      )}
+
+      {/* Work Folder Modal */}
+      <WorkFolderModal
+        isOpen={isWorkFolderOpen}
+        onClose={() => setIsWorkFolderOpen(false)}
+        folderName={workFolderName}
+        isWritable={Boolean(workDirHandle || isVirtualFolder)}
+        isSupported={isFileSystemAccessSupported()}
+        onSelectFolder={handleSelectWorkFolder}
+        onSetVirtualFolder={handleSetVirtualFolder}
+        onImportReports={handleImportReports}
+        onUploadFiles={handleUploadReports}
+        onOpenSavedTrades={() => setIsSavedTradesOpen(true)}
+        savedTradesCount={savedTrades.length}
+        importStatus={importStatus}
+      />
     </div>
   );
 }

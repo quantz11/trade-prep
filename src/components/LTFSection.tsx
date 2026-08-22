@@ -2,6 +2,7 @@ import { Check, Sparkles, ShieldAlert, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
 import { LTFState, LTFMode, HTFState } from '../types';
 import { ChipSelector } from './ChipSelector';
+import { StepNoteInput } from './StepNoteInput';
 
 interface LTFSectionProps {
   ltf: LTFState;
@@ -161,6 +162,13 @@ export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTF
                 onChange={(chips) => onUpdateLTF({ trigger1Chips: chips })}
                 color="purple"
               />
+              <StepNoteInput
+                checked={ltf.trigger1}
+                text={ltf.trigger1Text}
+                image={ltf.trigger1Image}
+                onUpdateText={(text) => onUpdateLTF({ trigger1Text: text })}
+                onUpdateImage={(image) => onUpdateLTF({ trigger1Image: image })}
+              />
             </div>
 
             {/* Entry 1 (Unlocked only if trigger1 is checked) */}
@@ -205,6 +213,13 @@ export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTF
                     selectedChips={ltf.entry1Chips}
                     onChange={(chips) => onUpdateLTF({ entry1Chips: chips })}
                     color="purple"
+                  />
+                  <StepNoteInput
+                    checked={ltf.entry1}
+                    text={ltf.entry1Text}
+                    image={ltf.entry1Image}
+                    onUpdateText={(text) => onUpdateLTF({ entry1Text: text })}
+                    onUpdateImage={(image) => onUpdateLTF({ entry1Image: image })}
                   />
                 </div>
               </motion.div>
@@ -260,6 +275,13 @@ export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTF
                 onChange={(chips) => onUpdateLTF({ vcChips: chips })}
                 color="purple"
               />
+              <StepNoteInput
+                checked={ltf.vc}
+                text={ltf.vcText}
+                image={ltf.vcImage}
+                onUpdateText={(text) => onUpdateLTF({ vcText: text })}
+                onUpdateImage={(image) => onUpdateLTF({ vcImage: image })}
+              />
             </div>
 
             {/* LTF Trigger 2 (Unlocked after LTF VC) */}
@@ -305,6 +327,13 @@ export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTF
                     onChange={(chips) => onUpdateLTF({ trigger2Chips: chips })}
                     color="purple"
                   />
+                  <StepNoteInput
+                    checked={ltf.trigger2}
+                    text={ltf.trigger2Text}
+                    image={ltf.trigger2Image}
+                    onUpdateText={(text) => onUpdateLTF({ trigger2Text: text })}
+                    onUpdateImage={(image) => onUpdateLTF({ trigger2Image: image })}
+                  />
                 </div>
 
                 {/* Entry 2 (Unlocked after trigger2) */}
@@ -349,6 +378,13 @@ export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTF
                         selectedChips={ltf.entry2Chips}
                         onChange={(chips) => onUpdateLTF({ entry2Chips: chips })}
                         color="purple"
+                      />
+                      <StepNoteInput
+                        checked={ltf.entry2}
+                        text={ltf.entry2Text}
+                        image={ltf.entry2Image}
+                        onUpdateText={(text) => onUpdateLTF({ entry2Text: text })}
+                        onUpdateImage={(image) => onUpdateLTF({ entry2Image: image })}
                       />
                     </div>
                   </motion.div>
@@ -406,6 +442,13 @@ export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTF
                 onChange={(chips) => onUpdateLTF({ vcChips: chips })}
                 color="purple"
               />
+              <StepNoteInput
+                checked={ltf.vc}
+                text={ltf.vcText}
+                image={ltf.vcImage}
+                onUpdateText={(text) => onUpdateLTF({ vcText: text })}
+                onUpdateImage={(image) => onUpdateLTF({ vcImage: image })}
+              />
             </div>
 
             {/* VC Entry (Unlocked after LTF VC) */}
@@ -450,6 +493,13 @@ export function LTFSection({ ltf, ltfMode, htf, onUpdateLTF, onUpdateMode }: LTF
                     selectedChips={ltf.vcEntryChips}
                     onChange={(chips) => onUpdateLTF({ vcEntryChips: chips })}
                     color="purple"
+                  />
+                  <StepNoteInput
+                    checked={ltf.vcEntry}
+                    text={ltf.vcEntryText}
+                    image={ltf.vcEntryImage}
+                    onUpdateText={(text) => onUpdateLTF({ vcEntryText: text })}
+                    onUpdateImage={(image) => onUpdateLTF({ vcEntryImage: image })}
                   />
                 </div>
               </motion.div>

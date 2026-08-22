@@ -2,6 +2,7 @@ import { Check, ArrowDownRight, ArrowRight, Layers, Sparkles } from 'lucide-reac
 import { motion, AnimatePresence } from 'motion/react';
 import { HTFState } from '../types';
 import { ChipSelector } from './ChipSelector';
+import { StepNoteInput } from './StepNoteInput';
 
 interface HTFSectionProps {
   htf: HTFState;
@@ -99,6 +100,14 @@ export function HTFSection({ htf, onUpdateHTF }: HTFSectionProps) {
               selectedChips={htf.vc1Chips}
               onChange={(chips) => onUpdateHTF({ vc1Chips: chips })}
               color="blue"
+              dotAfter="1H"
+            />
+            <StepNoteInput
+              checked={htf.vc1}
+              text={htf.vc1Text}
+              image={htf.vc1Image}
+              onUpdateText={(text) => onUpdateHTF({ vc1Text: text })}
+              onUpdateImage={(image) => onUpdateHTF({ vc1Image: image })}
             />
           </div>
 
@@ -152,6 +161,14 @@ export function HTFSection({ htf, onUpdateHTF }: HTFSectionProps) {
                     selectedChips={htf.vc2Chips}
                     onChange={(chips) => onUpdateHTF({ vc2Chips: chips })}
                     color="blue"
+                    dotAfter="1H"
+                  />
+                  <StepNoteInput
+                    checked={htf.vc2}
+                    text={htf.vc2Text}
+                    image={htf.vc2Image}
+                    onUpdateText={(text) => onUpdateHTF({ vc2Text: text })}
+                    onUpdateImage={(image) => onUpdateHTF({ vc2Image: image })}
                   />
                 </div>
 
@@ -196,6 +213,14 @@ export function HTFSection({ htf, onUpdateHTF }: HTFSectionProps) {
                     selectedChips={htf.idm1Chips}
                     onChange={(chips) => onUpdateHTF({ idm1Chips: chips })}
                     color="blue"
+                    dotAfter="1H"
+                  />
+                  <StepNoteInput
+                    checked={htf.idm1}
+                    text={htf.idm1Text}
+                    image={htf.idm1Image}
+                    onUpdateText={(text) => onUpdateHTF({ idm1Text: text })}
+                    onUpdateImage={(image) => onUpdateHTF({ idm1Image: image })}
                   />
                 </div>
               </motion.div>
@@ -250,6 +275,14 @@ export function HTFSection({ htf, onUpdateHTF }: HTFSectionProps) {
               selectedChips={htf.idm2Chips}
               onChange={(chips) => onUpdateHTF({ idm2Chips: chips })}
               color="amber"
+              dotAfter="1H"
+            />
+            <StepNoteInput
+              checked={htf.idm2}
+              text={htf.idm2Text}
+              image={htf.idm2Image}
+              onUpdateText={(text) => onUpdateHTF({ idm2Text: text })}
+              onUpdateImage={(image) => onUpdateHTF({ idm2Image: image })}
             />
           </div>
 
@@ -303,6 +336,14 @@ export function HTFSection({ htf, onUpdateHTF }: HTFSectionProps) {
                     selectedChips={htf.vc3Chips}
                     onChange={(chips) => onUpdateHTF({ vc3Chips: chips })}
                     color="amber"
+                    dotAfter="1H"
+                  />
+                  <StepNoteInput
+                    checked={htf.vc3}
+                    text={htf.vc3Text}
+                    image={htf.vc3Image}
+                    onUpdateText={(text) => onUpdateHTF({ vc3Text: text })}
+                    onUpdateImage={(image) => onUpdateHTF({ vc3Image: image })}
                   />
                 </div>
               </motion.div>

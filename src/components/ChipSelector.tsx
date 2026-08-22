@@ -5,9 +5,10 @@ interface ChipSelectorProps {
   selectedChips?: string[];
   onChange: (chips: string[]) => void;
   color?: 'blue' | 'amber' | 'purple';
+  dotAfter?: string;
 }
 
-export function ChipSelector({ options, selectedChips = [], onChange, color = 'blue' }: ChipSelectorProps) {
+export function ChipSelector({ options, selectedChips = [], onChange, color = 'blue', dotAfter = '1m' }: ChipSelectorProps) {
   const toggleChip = (opt: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const current = selectedChips || [];
@@ -27,9 +28,9 @@ export function ChipSelector({ options, selectedChips = [], onChange, color = 'b
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 mt-2 ml-9">
-      {options.map((opt, index) => {
+      {options.map((opt) => {
         const isSelected = selectedChips.includes(opt);
-        const isAfterTimeframe = opt === '1m';
+        const isAfterTimeframe = dotAfter ? opt === dotAfter : false;
         return (
           <React.Fragment key={opt}>
             <button
