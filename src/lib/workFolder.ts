@@ -220,6 +220,22 @@ export async function saveTradeToWorkFolder(
       tradeFolderZip.file('report.json', reportJsonString);
     }
 
+    const resultData = {
+      id: trade.id,
+      instrument: trade.config.instrument,
+      bias: trade.config.bias,
+      outcome: trade.outcome || null,
+      status: trade.status,
+      entryPrice: trade.config.entryPrice,
+      stopLoss: trade.config.stopLoss,
+      takeProfit: trade.config.takeProfit,
+      updatedAt: new Date().toISOString(),
+    };
+    const resultJsonString = JSON.stringify(resultData, null, 2);
+    if (tradeFolderZip) {
+      tradeFolderZip.file('result.json', resultJsonString);
+    }
+
     // Write directly to local work folder if directory handle is available
     if (activeHandle) {
       try {
@@ -239,6 +255,12 @@ export async function saveTradeToWorkFolder(
         const reportWritable = await reportFileHandle.createWritable();
         await reportWritable.write(reportJsonString);
         await reportWritable.close();
+
+        // Write result.json directly to the local trade folder
+        const resultFileHandle = await tradeHandle.getFileHandle('result.json', { create: true });
+        const resultWritable = await resultFileHandle.createWritable();
+        await resultWritable.write(resultJsonString);
+        await resultWritable.close();
       } catch (fsErr) {
         console.error('Native FS write error:', fsErr);
         if (!isAIStudioEnvironment()) {
@@ -422,6 +444,19 @@ export async function scanAndImportWorkFolder(
 
         if (!tradeData || !tradeData.id) continue;
 
+        // Check for result.json in the same trade directory to get the latest outcome
+        try {
+          const resultFileHandle = await dir.getFileHandle('result.json');
+          const resultFile = await resultFileHandle.getFile();
+          const resultText = await resultFile.text();
+          const resData = JSON.parse(resultText);
+          if (resData && resData.outcome !== undefined) {
+            tradeData.outcome = resData.outcome || undefined;
+          }
+        } catch {
+          // No result.json or failed to parse, use outcome in report.json
+        }
+
         // Restore image data URLs from files in this trade folder
         const manifest = (tradeData as any).imageManifest as Array<{ label: string; filename: string }> | undefined;
 
@@ -496,7 +531,7 @@ export async function importTradesFromUploadedFiles(files: FileList | File[]): P
   const fileArray = Array.from(files);
 
   // Group files by relative folder directory for webkitdirectory uploads
-  const dirMap = new Map<string, { reportFiles: File[]; imageFiles: Map<string, File> }>();
+  const dirMap = new Map<string, { reportFiles: File[]; resultFiles: File[]; imageFiles: Map<string, File> }>();
   const zipFiles: File[] = [];
   const standaloneJsonFiles: File[] = [];
 
@@ -517,10 +552,12 @@ export async function importTradesFromUploadedFiles(files: FileList | File[]): P
       const fileName = relPath.substring(lastSlash + 1);
 
       if (!dirMap.has(dirPath)) {
-        dirMap.set(dirPath, { reportFiles: [], imageFiles: new Map() });
+        dirMap.set(dirPath, { reportFiles: [], resultFiles: [], imageFiles: new Map() });
       }
       const dirEntry = dirMap.get(dirPath)!;
-      if (isJson) {
+      if (fileName.toLowerCase() === 'result.json') {
+        dirEntry.resultFiles.push(file);
+      } else if (isJson) {
         dirEntry.reportFiles.push(file);
       } else if (isImg) {
         dirEntry.imageFiles.set(fileName.toLowerCase(), file);
@@ -531,12 +568,25 @@ export async function importTradesFromUploadedFiles(files: FileList | File[]): P
   }
 
   // 1. Process directory trees from webkitdirectory
-  for (const [dirPath, { reportFiles, imageFiles }] of dirMap.entries()) {
+  for (const [dirPath, { reportFiles, resultFiles, imageFiles }] of dirMap.entries()) {
     for (const reportFile of reportFiles) {
       try {
         const text = await reportFile.text();
         const tradeData: SavedTrade = JSON.parse(text);
         if (!tradeData || !tradeData.id) continue;
+
+        // Check if matching result.json exists in this folder
+        if (resultFiles.length > 0) {
+          try {
+            const resText = await resultFiles[0].text();
+            const resData = JSON.parse(resText);
+            if (resData && resData.outcome !== undefined) {
+              tradeData.outcome = resData.outcome || undefined;
+            }
+          } catch {
+            // ignore
+          }
+        }
 
         // Restore image data URLs from sibling image files in the directory
         const manifest = (tradeData as any).imageManifest as Array<{ label: string; filename: string }> | undefined;
@@ -609,6 +659,22 @@ export async function importTradesFromUploadedFiles(files: FileList | File[]): P
         if (!tradeData || !tradeData.id) continue;
 
         const folderPath = rFile.name.substring(0, rFile.name.lastIndexOf('/'));
+        
+        // Check for sibling result.json in ZIP
+        const resultZipPath = folderPath ? `${folderPath}/result.json` : 'result.json';
+        const resultZipEntry = zip.file(resultZipPath);
+        if (resultZipEntry) {
+          try {
+            const resText = await resultZipEntry.async('text');
+            const resData = JSON.parse(resText);
+            if (resData && resData.outcome !== undefined) {
+              tradeData.outcome = resData.outcome || undefined;
+            }
+          } catch {
+            // ignore
+          }
+        }
+
         const manifest = (tradeData as any).imageManifest as Array<{ label: string; filename: string }> | undefined;
 
         if (manifest && Array.isArray(manifest)) {
@@ -642,4 +708,99 @@ export async function importTradesFromUploadedFiles(files: FileList | File[]): P
   }
 
   return importedList;
+}
+
+/**
+ * Updates result.json in the local work folder for a trade
+ */
+export async function updateTradeOutcomeInWorkFolder(
+  trade: SavedTrade,
+  dirHandle: FileSystemDirectoryHandle | null = null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    let activeHandle = dirHandle;
+    if (!activeHandle) {
+      activeHandle = await getPersistedDirHandle();
+    }
+
+    if (!activeHandle) {
+      return { success: false, error: 'No work folder connected' };
+    }
+
+    // Verify permission
+    // @ts-ignore
+    if (activeHandle.queryPermission) {
+      // @ts-ignore
+      let q = await activeHandle.queryPermission({ mode: 'readwrite' });
+      if (q !== 'granted') {
+        // @ts-ignore
+        q = await activeHandle.requestPermission({ mode: 'readwrite' });
+        if (q !== 'granted') {
+          return { success: false, error: 'Readwrite permission not granted' };
+        }
+      }
+    }
+
+    const pairFolder = trade.config.instrument || 'DEFAULT';
+    let tradeHandle: FileSystemDirectoryHandle | null = null;
+
+    try {
+      const pairHandle = await activeHandle.getDirectoryHandle(pairFolder, { create: true });
+      tradeHandle = await pairHandle.getDirectoryHandle(trade.id, { create: true });
+    } catch {
+      // Look for the directory matching trade.id anywhere in the work folder
+      const tradeDirs = await findTradeDirectories(activeHandle);
+      for (const item of tradeDirs) {
+        if (item.name === trade.id || item.name.includes(trade.id)) {
+          tradeHandle = item.dir;
+          break;
+        }
+      }
+    }
+
+    if (!tradeHandle) {
+      return { success: false, error: 'Could not locate trade directory in work folder' };
+    }
+
+    // 1. Write updated result.json
+    const resultData = {
+      id: trade.id,
+      instrument: trade.config.instrument,
+      bias: trade.config.bias,
+      outcome: trade.outcome || null,
+      status: trade.status,
+      entryPrice: trade.config.entryPrice,
+      stopLoss: trade.config.stopLoss,
+      takeProfit: trade.config.takeProfit,
+      updatedAt: new Date().toISOString(),
+    };
+    const resultFileHandle = await tradeHandle.getFileHandle('result.json', { create: true });
+    const resultWritable = await resultFileHandle.createWritable();
+    await resultWritable.write(JSON.stringify(resultData, null, 2));
+    await resultWritable.close();
+
+    // 2. Also update report.json if present
+    try {
+      const reportFileHandle = await tradeHandle.getFileHandle('report.json', { create: true });
+      let currentReportData: any = {};
+      try {
+        const file = await reportFileHandle.getFile();
+        const text = await file.text();
+        currentReportData = JSON.parse(text);
+      } catch {
+        currentReportData = { ...trade };
+      }
+      currentReportData.outcome = trade.outcome || undefined;
+      const reportWritable = await reportFileHandle.createWritable();
+      await reportWritable.write(JSON.stringify(currentReportData, null, 2));
+      await reportWritable.close();
+    } catch (e) {
+      console.warn('Notice updating report.json:', e);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Failed to update result.json in work folder:', err);
+    return { success: false, error: err?.message || 'Failed to update trade outcome' };
+  }
 }

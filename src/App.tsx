@@ -84,6 +84,7 @@ import {
   persistDirHandle,
   scanAndImportWorkFolder,
   importTradesFromUploadedFiles,
+  updateTradeOutcomeInWorkFolder,
 } from './lib/workFolder';
 
 export default function App() {
@@ -529,9 +530,24 @@ export default function App() {
   };
 
   const handleUpdateTradeOutcome = (id: string, outcome: TradeOutcome | undefined) => {
-    setSavedTrades((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, outcome } : t))
-    );
+    setSavedTrades((prev) => {
+      const updatedTrades = prev.map((t) => (t.id === id ? { ...t, outcome } : t));
+      const targetTrade = updatedTrades.find((t) => t.id === id);
+      if (targetTrade) {
+        updateTradeOutcomeInWorkFolder(targetTrade, workDirHandle)
+          .then((res) => {
+            if (res.success) {
+              console.log(`result.json updated in local work folder for trade ${id}`);
+            } else {
+              console.warn('Could not update work folder result.json:', res.error);
+            }
+          })
+          .catch((err) => {
+            console.warn('Error updating work folder outcome:', err);
+          });
+      }
+      return updatedTrades;
+    });
   };
 
   const handleLoadTrade = (trade: SavedTrade) => {
